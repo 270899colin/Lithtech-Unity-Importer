@@ -52,19 +52,9 @@ public class DATImporter : Editor
 
             foreach (var mesh in meshes)
             {
-                var meshObject = new GameObject("World Model " + i);
-                meshObject.transform.SetParent(root.transform);
-                var render = meshObject.AddComponent<MeshRenderer>();
-                var texName = tex_names[i];
-                var mat = new Material(Shader.Find("Standard"));
-                mat.SetTexture("_MainTex", GetTexture(texName));
-                render.material = mat;
-                var filter = meshObject.AddComponent<MeshFilter>();
-                filter.mesh = mesh;
-                i += 1;
-                total_mesh_count += 1;      
-                // TODO: Make configurable in project settings?
-                meshObject.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
+                PlaceMesh(mesh, mesh_names[i], tex_names[i], root.transform);
+                i++;
+                total_mesh_count++;
             }
         }
 
@@ -89,24 +79,32 @@ public class DATImporter : Editor
 
                 foreach (var mesh in meshes)
                 {
-                    var meshObject = new GameObject("World Model " + i);
-                    meshObject.transform.SetParent(root.transform);
-                    var render = meshObject.AddComponent<MeshRenderer>();
-                    var texName = tex_names[i];
-                    var mat = new Material(Shader.Find("Standard"));
-                    mat.SetTexture("_MainTex", GetTexture(texName));               
-                    render.material = mat;
-                    var filter = meshObject.AddComponent<MeshFilter>();
-                    var collier = meshObject.AddComponent<MeshCollider>();
-                    filter.mesh = mesh;
-                    i += 1;
-                    total_mesh_count += 1;
-                    meshObject.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
+                    PlaceMesh(mesh, mesh_names[i], tex_names[i], root.transform);
+                    i++;
+                    total_mesh_count++;
                 }
             }
         }
 
         datFile.Close();
+    }
+
+    // TODO: Make scale, shader configurable
+    private static void PlaceMesh(Mesh mesh, string meshName, string texName, Transform parent)
+    {
+        var meshObject = new GameObject(meshName);
+
+        meshObject.transform.SetParent(parent.transform);
+        var render = meshObject.AddComponent<MeshRenderer>();
+
+        var mat = new Material(Shader.Find("Standard"));
+        mat.SetTexture("_MainTex", GetTexture(texName));
+        render.material = mat;
+        var filter = meshObject.AddComponent<MeshFilter>();
+        meshObject.AddComponent<MeshCollider>();
+        filter.mesh = mesh;
+
+        meshObject.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
     }
 
     private static Tuple<List<Mesh>, List<string>, List<string>> FillArrayMesh(DATFile datFile, DATFile.WorldBSP[] worldModels)
