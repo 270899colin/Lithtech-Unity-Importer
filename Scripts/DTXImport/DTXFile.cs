@@ -174,7 +174,7 @@ public class DTXFile
         texture.LoadRawTextureData(color_data.ToArray());
 
         // TODO: Find out why texture is flipped
-        FlipTexture(ref texture);
+        //FlipTexture(ref texture);
 
         texture.Apply(false);
     }

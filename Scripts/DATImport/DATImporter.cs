@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.AssetImporters;
@@ -54,12 +55,16 @@ public class DATImporter : Editor
                 var meshObject = new GameObject("World Model " + i);
                 meshObject.transform.SetParent(root.transform);
                 var render = meshObject.AddComponent<MeshRenderer>();
-                render.material = new Material(Shader.Find("Standard"));
+                var texName = tex_names[i];
+                var mat = new Material(Shader.Find("Standard"));
+                mat.SetTexture("_MainTex", GetTexture(texName));
+                render.material = mat;
                 var filter = meshObject.AddComponent<MeshFilter>();
                 filter.mesh = mesh;
                 i += 1;
                 total_mesh_count += 1;      
-                meshObject.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                // TODO: Make configurable in project settings?
+                meshObject.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
             }
         }
 
@@ -87,13 +92,16 @@ public class DATImporter : Editor
                     var meshObject = new GameObject("World Model " + i);
                     meshObject.transform.SetParent(root.transform);
                     var render = meshObject.AddComponent<MeshRenderer>();
-                    render.material = new Material(Shader.Find("Standard"));
+                    var texName = tex_names[i];
+                    var mat = new Material(Shader.Find("Standard"));
+                    mat.SetTexture("_MainTex", GetTexture(texName));               
+                    render.material = mat;
                     var filter = meshObject.AddComponent<MeshFilter>();
                     var collier = meshObject.AddComponent<MeshCollider>();
                     filter.mesh = mesh;
                     i += 1;
                     total_mesh_count += 1;
-                    meshObject.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                    meshObject.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
                 }
             }
         }
@@ -209,8 +217,8 @@ public class DATImporter : Editor
                 {
                     var vert = world_model.points[diskVert.vertex_index];
 
-                    var uv1 = new Vector2();
-                    var uv2 = new Vector2();
+                    var uv1 = new Vector3();
+                    var uv2 = new Vector3();
                     var uv3 = new Vector3();
 
                     if (datFile.IsLithtech1() || datFile.IsLithtech2())
@@ -329,7 +337,7 @@ public class DATImporter : Editor
 
         foreach (var texture in textured_meshes.Keys)
         {
-            var st = new SurfaceTool();
+            var builder = new MeshBuilder();
             var batches = textured_meshes[texture];
 
             foreach (var meshData in batches)
@@ -341,10 +349,10 @@ public class DATImporter : Editor
                 var mesh_uvs2 = meshData.uvs2.ToArray();
 
                 // Mesh is formatted in triangle fan segments
-                st.AddTriangleFan(mesh_verts, mesh_uvs, mesh_colors, mesh_uvs2, mesh_normals);
+                builder.AddTriangleFan(mesh_verts, mesh_uvs, mesh_colors, mesh_uvs2, mesh_normals);
             }
 
-            meshes.Add(st.GetMesh());
+            meshes.Add(builder.GetMesh());
 
             texture_references.Add(texture);
             mesh_names.Add("World Model");
@@ -357,8 +365,8 @@ public class DATImporter : Editor
     {
         var point = vertex - o;
 
-        var u = Vector2.Dot(point, p) / texWidth;
-        var v = Vector2.Dot(point, q) / texHeight;
+        var u = Vector3.Dot(point, p) / texWidth;
+        var v = Vector3.Dot(point, q) / texHeight;
 
         return new Vector2(u, v);
     }
@@ -370,9 +378,21 @@ public class DATImporter : Editor
         return new Vector2(x, y);
     }
 
+    // TODO: Make this configurable via settings provider
+    // TODO: Cache textures
+    private const string gameRootDir = "D:\\Games\\Psycho\\PSYCHO\\";
     private static Texture2D GetTexture(string texName)
     {
-        return null;
+        var texPath = gameRootDir + texName;
+        if(File.Exists(texPath))
+        {
+            var dtxFile = new DTXFile(texPath);
+            return dtxFile.GetTexture();
+        } else
+        {
+            Debug.LogWarning(String.Format("Texture '{0}' not found at path '{1}'", texName, texPath));
+            return null;
+        }
     }
 
     private class TexturedMeshData
@@ -393,8 +413,7 @@ public class DATImporter : Editor
         }
     }
 
-    // Adopted/modified from Godot SurfaceTool add_triangle_fan (refactor/replace later)
-    private class SurfaceTool {
+    private class MeshBuilder {
         public List<Vector3> verts = new List<Vector3>();
         public List<Vector2> uvs = new List<Vector2>();
         public List<Vector2> uvs2 = new List<Vector2>();
@@ -402,42 +421,7 @@ public class DATImporter : Editor
         public List<Color32> colors = new List<Color32>();
         public List<int> triangles = new();
 
-        private Vector2 last_uv;
-        private Vector2 last_uv2;
-        private Color32 last_color;
-        private Vector3 last_normal;
-
         private int vertCount = 0;
-
-        public void AddTriangleFan(Vector3[] vertices, Vector2[] uvs, Color32[] colors, Vector2[] uv2s, Vector3[] normals)
-        {
-            for (int i = 0; i < vertices.Length - 2; i++)
-            {
-                AddPoint(0);
-                AddPoint(i + 1);
-                AddPoint(i + 2);
-            }
-
-            void AddPoint(int n)
-            {
-                if (colors.Length > n)
-                {
-                    last_color = colors[n];
-                }
-                if (uvs.Length > n) {
-                    last_uv = uvs[n];
-                }
-                if (uv2s.Length > n)
-                {
-                    last_uv2 = uv2s[n];
-                }
-                if (normals.Length > n)
-                {
-                    last_normal = normals[n];
-                }
-                AddVertex(vertices[n]);
-            }
-        }
 
         public Mesh GetMesh()
         {
@@ -451,26 +435,25 @@ public class DATImporter : Editor
             return mesh;
         }
 
-        public void Clear()
+        public void AddTriangleFan(Vector3[] vertices, Vector2[] uvs, Color32[] colors, Vector2[] uv2s, Vector3[] normals)
         {
-            verts.Clear();
-            uvs.Clear();
-            uvs2.Clear();
-            normals.Clear();
-            colors.Clear();
-        }
+            for (int i = 0; i < vertices.Length - 2; i++)
+            {
+                AddPoint(0);
+                AddPoint(i + 1);
+                AddPoint(i + 2);
+            }
 
-        private void AddVertex(Vector3 vert)
-        {
-            verts.Add(vert);
-            colors.Add(last_color);
-            normals.Add(last_normal);
-            uvs.Add(last_uv);
-            uvs2.Add(last_uv2);
-
-            // PRIMITIVE_TRIANGLES in Godot (Every 3 vertices a triangle is created)
-            triangles.Add(vertCount);
-            vertCount++;
+            void AddPoint(int n)
+            {
+                this.verts.Add(vertices[n]);
+                this.colors.Add(colors[n]);
+                this.normals.Add(normals[n]);
+                this.uvs.Add(uvs[n]);
+                //this.uvs2.Add(uvs2[n]);
+                this.triangles.Add(vertCount);
+                vertCount++;
+            }
         }
     }
 }
