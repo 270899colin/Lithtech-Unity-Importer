@@ -435,7 +435,7 @@ public class DATImporter : Editor
             return mesh;
         }
 
-        public void AddTriangleFan(Vector3[] vertices, Vector2[] uvs, Color32[] colors, Vector2[] uv2s, Vector3[] normals)
+        public void AddTriangleFan(Vector3[] vertices, Vector2[] uvs, Color32[] colors, Vector2[] uvs2, Vector3[] normals)
         {
             for (int i = 0; i < vertices.Length - 2; i++)
             {
@@ -450,7 +450,7 @@ public class DATImporter : Editor
                 this.colors.Add(colors[n]);
                 this.normals.Add(normals[n]);
                 this.uvs.Add(uvs[n]);
-                //this.uvs2.Add(uvs2[n]);
+                this.uvs2.Add(uvs2[n]);
                 this.triangles.Add(vertCount);
                 vertCount++;
             }

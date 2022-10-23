@@ -2,6 +2,7 @@ using ExtensionMethods;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 
@@ -1043,7 +1044,14 @@ public class DATFile
                             color_data.Add((packed_color & 0x001F) << 3);
                         }
 
-                        // TODO: Apply lightmap to texture
+                        var arr = color_data.SelectMany(BitConverter.GetBytes).ToArray();
+                        if(arr.Count() != 0)
+                        {
+                            Texture2D lm_texture = new Texture2D(lm_width, lm_height, TextureFormat.ARGB32, false);
+                            lm_texture.LoadRawTextureData(arr);
+                            lm_texture.Apply();
+                            poly.lightmap_texture = lm_texture;
+                        }
                     }
                 }
             }
