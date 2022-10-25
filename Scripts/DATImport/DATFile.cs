@@ -1339,7 +1339,7 @@ public class DATFile
         public ushort data_length = 0;
         public string name = "";
         public int property_count = 0;
-        public List<ObjectProperty> properties = new();
+        public Dictionary<string, ObjectProperty> properties = new();
 
         public WorldObject(BinaryReader reader)
         {
@@ -1350,7 +1350,7 @@ public class DATFile
             for (int i = 0; i < this.property_count; i++)
             {
                 var property = new ObjectProperty(reader);
-                this.properties.Add(property);
+                this.properties.Add(property.name, property);
             }
         }
     }

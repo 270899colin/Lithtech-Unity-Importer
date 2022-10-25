@@ -11,7 +11,11 @@ public class DATImporter : Editor
 {
     const float LIGHTMAP_ATLAS_SIZE = 2048.0f;
 
-    // TODO: Materials/textures, Lightmaps, Jupiter support
+    // TODO: Make this configurable via settings provider
+    const string gameRootDir = "D:\\Games\\Psycho\\PSYCHO\\";
+    const float importScale = 0.01f;
+
+    // TODO: Lightmaps, Jupiter support
     [MenuItem("LithTech/Import .DAT")]
     private static void Start()
     {
@@ -86,7 +90,49 @@ public class DATImporter : Editor
             }
         }
 
+        if(datFile.IsLithtechPsycho())
+        {
+            PlaceObjects(datFile, root.transform);
+        }
+
+        root.transform.localScale *= importScale;
+
         datFile.Close();
+    }
+
+    // VERY experimental, only tested with KPC
+    private static void PlaceObjects(DATFile datFile, Transform root)
+    {
+        foreach (var wo in datFile.world_object_data.world_objects)
+        {
+            switch (wo.name)
+            {
+                case "Light":
+                    var props = wo.properties;
+                    Vector3 pos = (Vector3)props["Pos"].value;
+                    var go = new GameObject("Light");
+                    go.transform.position = pos;
+                    go.transform.SetParent(root);
+                    Debug.Log(props["LightColor"].value);
+                    Debug.Log(props["LightRadius"].value);
+
+                    var light = go.AddComponent<Light>();
+                    light.type = LightType.Point;
+                    var color = (Vector3)props["LightColor"].value;
+                    light.color = new Color32((byte)color.x, (byte)color.y, (byte)color.z, 255);
+                    light.range = (float)props["LightRadius"].value * importScale;
+
+                    /*foreach (var item in wo.properties)
+                    {
+                        //Debug.Log(item.name);
+                    }*/
+                    break;
+                case "DirLight":
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     // TODO: Make scale, shader configurable
@@ -98,13 +144,13 @@ public class DATImporter : Editor
         var render = meshObject.AddComponent<MeshRenderer>();
 
         var mat = new Material(Shader.Find("Standard"));
+        //var mat = new Material(Shader.Find("PSXEffects/PS1Shader"));
         mat.SetTexture("_MainTex", GetTexture(texName));
         render.material = mat;
-        var filter = meshObject.AddComponent<MeshFilter>();
-        meshObject.AddComponent<MeshCollider>();
+        var filter = meshObject.AddComponent<MeshFilter>();        
         filter.mesh = mesh;
-
-        meshObject.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
+        var collider = meshObject.AddComponent<MeshCollider>();
+        collider.sharedMesh = mesh;
     }
 
     private static Tuple<List<Mesh>, List<string>, List<string>> FillArrayMesh(DATFile datFile, DATFile.WorldBSP[] worldModels)
@@ -376,9 +422,7 @@ public class DATImporter : Editor
         return new Vector2(x, y);
     }
 
-    // TODO: Make this configurable via settings provider
     // TODO: Cache textures
-    private const string gameRootDir = "D:\\Games\\Psycho\\PSYCHO\\";
     private static Texture2D GetTexture(string texName)
     {
         var texPath = gameRootDir + texName;
