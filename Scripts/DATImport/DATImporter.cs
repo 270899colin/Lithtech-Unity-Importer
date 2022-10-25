@@ -113,8 +113,6 @@ public class DATImporter : Editor
                     var go = new GameObject("Light");
                     go.transform.position = pos;
                     go.transform.SetParent(root);
-                    Debug.Log(props["LightColor"].value);
-                    Debug.Log(props["LightRadius"].value);
 
                     var light = go.AddComponent<Light>();
                     light.type = LightType.Point;
